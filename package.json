@@ -1,0 +1,20 @@
+{
+  "name": "com.throne.candyquestpro",
+  "displayName": "Candy Quest Pro",
+  "version": "1.0.0",
+  "description": "Sweet Match-3 Puzzle Adventure Game",
+  "main": "index.js",
+  "dependencies": {
+    "admob-plus-cordova": "^2.0.0"
+  },
+  "cordova": {
+    "plugins": {
+      "admob-plus-cordova": {
+        "APP_ID_ANDROID": "ca-app-pub-2255298899514160~1925829210"
+      }
+    },
+    "platforms": [
+      "android"
+    ]
+  }
+}

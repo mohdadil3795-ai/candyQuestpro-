@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;">
+<title>Candy Quest Pro</title>
+<script src="cordova.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; touch-action: manipulation; }
+  body {
+    background: linear-gradient(-45deg, #ff9a9e, #fad0c4, #fbc2eb, #a18cd1);
+    background-size: 400% 400%;
+    animation: gradientBG 12s ease infinite;
+    width: 100vw; height: 100vh; overflow: hidden; display: flex; flex-direction: column;
+  }
+  @keyframes gradientBG {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  .glass {
+    background: rgba(255, 255, 255, 0.35);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: 18px;
+    border: 1.5px solid rgba(255,255,255,0.6);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+  }
+
+  .screen {
+    display: none; width: 100%; height: calc(100% - 54px);
+    position: absolute; top: 0; left: 0;
+    flex-direction: column; align-items: center; justify-content: center;
+  }
+  .active { display: flex; }
+
+  /* Splash Screen */
+  #splashScreen h1 {
+    font-size: 2.8rem; color: #fff;
+    text-shadow: 0 4px 12px rgba(214, 48, 49, 0.45);
+    margin-bottom: 10px; text-align: center; letter-spacing: 1px;
+  }
+  #splashScreen p {
+    color: #fff; font-weight: 600; margin-bottom: 28px;
+    text-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  }
+  .splash-icon {
+    font-size: 5rem; margin-bottom: 15px;
+    animation: floatGem 2.4s ease-in-out infinite;
+    filter: drop-shadow(0 10px 15px rgba(0,0,0,0.25));
+  }
+  @keyframes floatGem {
+    0%, 100% { transform: translateY(0px) scale(1); }
+    50% { transform: translateY(-12px) scale(1.06); }
+  }
+
+  .btn {
+    padding: 14px 28px; font-size: 1.05rem; font-weight: 800; color: white;
+    background: linear-gradient(180deg, #ff7675 0%, #d63031 100%);
+    border: none; border-radius: 30px;
+    box-shadow: 0 5px 0 #b33939, 0 8px 18px rgba(214, 48, 49, 0.35);
+    cursor: pointer; transition: transform 0.08s, box-shadow 0.08s;
+    text-transform: uppercase; margin: 6px; letter-spacing: 0.5px;
+  }
+  .btn:active { transform: translateY(4px); box-shadow: 0 1px 0 #b33939, 0 3px 8px rgba(214, 48, 49, 0.35); }
+  .btn-blue { background: linear-gradient(180deg, #48dbfb 0%, #0abde3 100%); box-shadow: 0 5px 0 #0097e6, 0 8px 18px rgba(10, 189, 227, 0.35); }
+  .btn-blue:active { box-shadow: 0 1px 0 #0097e6; }
+  .btn-green { background: linear-gradient(180deg, #2ecc71 0%, #27ae60 100%); box-shadow: 0 5px 0 #1e8449, 0 8px 18px rgba(39, 174, 96, 0.35); }
+  .btn-green:active { box-shadow: 0 1px 0 #1e8449; }
+  .btn-sm { padding: 10px 18px; font-size: 0.9rem; }
+
+  /* Map Screen */
+  #mapScreen {
+    background: linear-gradient(180deg, #81ecec 0%, #a29bfe 50%, #fd79a8 100%);
+    overflow-y: auto; display: none; flex-direction: column; align-items: center;
+    justify-content: flex-start; padding: 20px 0 40px 0;
+  }
+  #mapScreen.active { display: flex; }
+  .map-header {
+    width: 90%; max-width: 400px; display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 16px; margin-bottom: 10px;
+  }
+  .level-node {
+    width: 62px; height: 62px; border-radius: 50%;
+    display: flex; justify-content: center; align-items: center;
+    font-size: 1.2rem; font-weight: 800; margin: 14px; cursor: pointer;
+    box-shadow: 0 6px 0 rgba(0,0,0,0.18), 0 8px 15px rgba(0,0,0,0.2);
+    position: relative; border: 3px solid #fff; transition: transform 0.15s;
+  }
+  .level-node.unlocked { background: linear-gradient(180deg, #ff9ff3 0%, #f368e0 100%); color: white; }
+  .level-node.current { background: linear-gradient(180deg, #ffeaa7 0%, #fdcb6e 100%); color: #2d3436; transform: scale(1.12); }
+  .level-node.locked { background: #dfe6e9; color: #636e72; }
+  .level-node:active { transform: scale(0.92); }
+  .map-path { position: relative; width: 100%; display: flex; flex-direction: column; align-items: center; }
+  .tree { font-size: 2rem; position: absolute; pointer-events: none; filter: drop-shadow(0 3px 3px rgba(0,0,0,0.15)); }
+
+  /* Game Screen */
+  #gameScreen { background: transparent; justify-content: flex-start; padding-top: 12px; }
+  .top-bar {
+    width: 92%; max-width: 400px; display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 12px; z-index: 10;
+  }
+  .stat-box { text-align: center; font-weight: 800; color: #2d3436; font-size: 0.78rem; text-transform: uppercase; }
+  .stat-val { display: block; font-size: 1.35rem; margin-top: 2px; }
+
+  .board-container {
+    width: 94vw; height: 94vw; max-width: 390px; max-height: 390px;
+    margin-top: 16px; position: relative;
+    background: rgba(255, 255, 255, 0.28);
+    border-radius: 16px; padding: 6px;
+    box-shadow: inset 0 0 20px rgba(255,255,255,0.4), 0 10px 25px rgba(0,0,0,0.15);
+    touch-action: none; overflow: hidden;
+  }
+  .grid { width: 100%; height: 100%; position: relative; }
+  .gem {
+    width: 12.5%; height: 12.5%;
+    display: flex; justify-content: center; align-items: center;
+    font-size: 28px; cursor: pointer; position: absolute;
+    transition: top 0.28s ease-in, left 0.28s ease-in, transform 0.15s;
+    border-radius: 50%;
+    filter: drop-shadow(0 4px 4px rgba(0,0,0,0.22));
+  }
+  .gem.matched { transform: scale(0) rotate(45deg); transition: transform 0.22s ease-out; }
+  .gem:active { transform: scale(0.82); }
+
+  .float-score {
+    position: absolute; font-weight: 900; font-size: 1.2rem; color: #fff;
+    text-shadow: 0 2px 6px rgba(214, 48, 49, 0.8);
+    pointer-events: none; z-index: 30;
+    animation: floatUp 0.8s ease-out forwards;
+  }
+  @keyframes floatUp {
+    0% { opacity: 1; transform: translateY(0) scale(0.8); }
+    100% { opacity: 0; transform: translateY(-45px) scale(1.2); }
+  }
+
+  /* Modals */
+  .modal-overlay {
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    background: rgba(0,0,0,0.65); display: none; justify-content: center; align-items: center; z-index: 100;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal-content {
+    padding: 26px 22px; text-align: center; width: 84%; max-width: 340px;
+    display: flex; flex-direction: column; gap: 12px;
+    background: rgba(255, 255, 255, 0.92);
+  }
+  .modal-content h2 { color: #2d3436; font-size: 1.5rem; }
+  .modal-content p { color: #636e72; font-weight: 600; font-size: 0.98rem; }
+
+  /* Toast message */
+  #toast {
+    position: fixed; bottom: 66px; left: 50%; transform: translateX(-50%);
+    background: rgba(45, 52, 54, 0.92); color: #fff; padding: 10px 20px;
+    border-radius: 25px; font-size: 0.9rem; font-weight: 600;
+    z-index: 200; display: none; white-space: nowrap;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+  }
+
+  /* Bottom Banner Area */
+  .admob-banner {
+    position: fixed; bottom: 0; left: 0; width: 100%; height: 52px;
+    background: rgba(255, 255, 255, 0.85); display: flex; justify-content: center; align-items: center;
+    color: #636e72; font-size: 0.8rem; font-weight: 600;
+    border-top: 1px solid rgba(0,0,0,0.08); z-index: 50;
+  }
+</style>
+</head>
+<body>
+
+<!-- Splash Screen -->
+<div id="splashScreen" class="screen active">
+  <div class="splash-icon">🍬</div>
+  <h1>Candy Quest Pro</h1>
+  <p>5,000 Sweet Puzzle Levels</p>
+  <button class="btn btn-green" onclick="showMap()">▶ Play Now</button>
+</div>
+
+<!-- Map Screen -->
+<div id="mapScreen" class="screen">
+  <div class="map-header glass">
+    <button class="btn btn-sm" style="margin:0;" onclick="showScreen('splashScreen')">Home</button>
+    <h3 style="color:#2d3436; font-weight:900;">World Map</h3>
+    <button id="muteBtnMap" class="btn btn-blue btn-sm" style="margin:0;" onclick="toggleMute()">🔊</button>
+  </div>
+  <div id="mapPath" class="map-path"></div>
+  <div style="display: flex; gap: 12px; margin: 18px 0; align-items: center;">
+    <button class="btn btn-blue btn-sm" onclick="prevZone()">◀ Prev</button>
+    <span id="zoneLabel" style="color: white; font-weight: 900; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">Zone 1 / 250</span>
+    <button class="btn btn-blue btn-sm" onclick="nextZone()">Next ▶</button>
+  </div>
+</div>
+
+<!-- Game Screen -->
+<div id="gameScreen" class="screen">
+  <div class="top-bar glass">
+    <button class="btn btn-sm" style="margin:0; padding:8px 12px;" onclick="showMap()">Map</button>
+    <div class="stat-box">Level<span id="uiLevel" class="stat-val" style="color: #d63031;">1</span></div>
+    <div class="stat-box">Moves<span id="uiMoves" class="stat-val" style="color: #0984e3;">20</span></div>
+    <div class="stat-box">Score / Goal<span id="uiScore" class="stat-val" style="color: #e84393; font-size: 1.15rem;">0 / 60</span></div>
+    <button id="muteBtnGame" class="btn btn-blue btn-sm" style="margin:0; padding:8px 12px;" onclick="toggleMute()">🔊</button>
+  </div>
+  <div class="board-container glass" id="boardContainer">
+    <div id="grid" class="grid"></div>
+  </div>
+</div>
+
+<!-- Modals -->
+<div id="lockedModal" class="modal-overlay">
+  <div class="modal-content glass">
+    <h2 style="color: #e17055;">🔒 LEVEL LOCKED</h2>
+    <p id="lockedText">Watch a short video ad to unlock this level immediately!</p>
+    <button class="btn btn-blue" onclick="watchAdToUnlock()">▶ WATCH AD TO UNLOCK</button>
+    <button class="btn" style="background:#b2bec3; box-shadow:0 4px 0 #636e72;" onclick="closeModal('lockedModal')">CANCEL</button>
+  </div>
+</div>
+
+<div id="playModal" class="modal-overlay">
+  <div class="modal-content glass">
+    <h2 style="color: #00b894;">LEVEL <span id="playLevelNum"></span></h2>
+    <p>Target Score: <strong id="playTargetScore" style="color:#d63031;"></strong><br>Moves Available: <strong id="playTargetMoves" style="color:#0984e3;"></strong></p>
+    <button class="btn btn-green" onclick="startGame()">PLAY NOW</button>
+    <button class="btn" style="background:#b2bec3; box-shadow:0 4px 0 #636e72;" onclick="closeModal('playModal')">CLOSE</button>
+  </div>
+</div>
+
+<div id="gameOverModal" class="modal-overlay">
+  <div class="modal-content glass">
+    <h2 style="color:#d63031;">OUT OF MOVES!</h2>
+    <p>Target: <strong id="goTarget"></strong> | Your Score: <strong id="goScore"></strong></p>
+    <button id="btnWatchAdMoves" class="btn btn-blue" onclick="watchAdForMoves()">▶ Watch Ad (+5 Moves)</button>
+    <button class="btn btn-green" onclick="retryLevel()">↻ RETRY</button>
+    <button class="btn" onclick="showMap()">MAP</button>
+  </div>
+</div>
+
+<div id="victoryModal" class="modal-overlay">
+  <div class="modal-content glass">
+    <h2 style="color: #f39c12;">🎉 LEVEL CLEARED!</h2>
+    <p>Final Score: <strong id="victoryScore" style="color:#00b894;"></strong></p>
+    <button class="btn btn-green" onclick="nextLevelFromVictory()">NEXT LEVEL ▶</button>
+    <button class="btn btn-blue" onclick="showMap()">WORLD MAP</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+<div id="adBannerSlot" class="admob-banner">Candy Quest Pro • AdMob Banner Active</div>
+
+<script>
+  // --- ADMOB REAL IDS ---
+  const ADMOB_CONFIG = {
+    appId: 'ca-app-pub-2255298899514160~1925829210',
+    bannerId: 'ca-app-pub-2255298899514160/7889261474',
+    rewardedId: 'ca-app-pub-2255298899514160/1132281433'
+  };
+
+  let isCordovaApp = false;
+  let bannerAd = null;
+  let rewardedAd = null;
+  let pendingRewardCallback = null;
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.innerText = msg;
+    t.style.display = 'block';
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => { t.style.display = 'none'; }, 2800);
+  }
+
+  // Cordova & AdMob Initialization
+  document.addEventListener('deviceready', async function() {
+    isCordovaApp = true;
+    if (typeof admob !== 'undefined') {
+      try {
+        await admob.start();
+        
+        // Initialize & Show Bottom Banner Ad
+        bannerAd = new admob.BannerAd({
+          adUnitId: ADMOB_CONFIG.bannerId,
+          position: 'bottom'
+        });
+        bannerAd.on('load', () => {
+          document.getElementById('adBannerSlot').innerText = '';
+          document.getElementById('adBannerSlot').style.background = 'transparent';
+        });
+        await bannerAd.show();
+
+        // Listen for Rewarded Ad Events
+        document.addEventListener('admob.rewarded.reward', () => {
+          if (typeof pendingRewardCallback === 'function') {
+            const cb = pendingRewardCallback;
+            pendingRewardCallback = null;
+            cb();
+          }
+        });
+        document.addEventListener('admob.rewarded.dismiss', () => {
+          preloadRewardedAd();
+        });
+
+        await preloadRewardedAd();
+      } catch (e) {
+        console.error('AdMob init error:', e);
+      }
+    }
+  }, false);
+
+  async function preloadRewardedAd() {
+    if (typeof admob === 'undefined') return;
+    try {
+      rewardedAd = new admob.RewardedAd({
+        adUnitId: ADMOB_CONFIG.rewardedId
+      });
+      await rewardedAd.load();
+    } catch (e) {
+      console.log('Rewarded ad preload pending:', e);
+    }
+  }
+
+  async function triggerRewardedAd(onSuccess) {
+    // If running inside compiled Android APK/AAB with real AdMob SDK
+    if (isCordovaApp && typeof admob !== 'undefined') {
+      try {
+        if (!rewardedAd) {
+          await preloadRewardedAd();
+        }
+        pendingRewardCallback = onSuccess;
+        await rewardedAd.show();
+      } catch (err) {
+        pendingRewardCallback = null;
+        showToast('Loading video ad, please tap again in 3 seconds...');
+        preloadRewardedAd();
+      }
+    } else {
+      // Fallback preview mode when tested in regular browser
+      showToast('Preview Mode: Simulating Rewarded Ad...');
+      setTimeout(() => {
+        onSuccess();
+      }, 900);
+    }
+  }
+
+  // --- AUDIO SYSTEM ---
+  const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  let isMuted = false;
+
+  window.toggleMute = function() {
+    isMuted = !isMuted;
+    const icon = isMuted ? '🔇' : '🔊';
+    document.getElementById('muteBtnMap').innerText = icon;
+    document.getElementById('muteBtnGame').innerText = icon;
+  };
+
+  function playTone(freq, type, duration) {
+    if (isMuted) return;
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = type; osc.frequency.value = freq;
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start();
+    gain.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + duration);
+    osc.stop(audioCtx.currentTime + duration);
+  }
+  function soundSwap() { playTone(420, 'sine', 0.1); }
+  function soundMatch() { playTone(780, 'triangle', 0.18); setTimeout(() => playTone(1180, 'triangle', 0.25), 90); }
+  function soundWin() { playTone(523, 'triangle', 0.12); setTimeout(() => playTone(659, 'triangle', 0.12), 130); setTimeout(() => playTone(784, 'triangle', 0.35), 260); }
+  function soundError() { playTone(190, 'sawtooth', 0.18); }
+
+  // --- GAME STATE ---
+  let unlockedLevel = parseInt(localStorage.getItem('unlockedLevel')) || 1;
+  let currentLevel = 1;
+  let currentZone = Math.ceil(unlockedLevel / 20) || 1;
+  const levelsPerZone = 20;
+  const maxZones = 250; // 250 * 20 = 5,000 levels
+  let selectedLevelForUnlock = null;
+  let score = 0;
+  let moves = 20;
+  let maxMoves = 20;
+  let targetScore = 60;
+
+  const emojis = ['🍎', '🍊', '🍇', '🍋', '🍉', '🍓'];
+  const width = 8;
+  let grid = [];
+  let gridEls = [];
+  let draggedId = null;
+  let replacedId = null;
+  let isAnimating = false;
+  let adCooldown = 0;
+
+  // --- NAVIGATION ---
+  window.showScreen = function(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active'));
+  };
+  window.showMap = function() {
+    currentZone = Math.min(maxZones, Math.max(1, Math.ceil(unlockedLevel / levelsPerZone)));
+    showScreen('mapScreen');
+    renderMap();
+  };
+  window.closeModal = function(id) { document.getElementById(id).classList.remove('active'); };
+  window.openModal = function(id) { document.getElementById(id).classList.add('active'); };
+
+  // --- MAP SYSTEM (5,000 Levels Paginated) ---
+  function renderMap() {
+    const path = document.getElementById('mapPath');
+    path.innerHTML = '';
+    document.getElementById('zoneLabel').innerText = `Zone ${currentZone} / ${maxZones}`;
+    const startLevel = (currentZone - 1) * levelsPerZone + 1;
+    const endLevel = startLevel + levelsPerZone - 1;
+
+    for (let i = startLevel; i <= endLevel; i++) {
+      const node = document.createElement('div');
+      let stateClass = i < unlockedLevel ? 'unlocked' : (i === unlockedLevel ? 'unlocked current' : 'locked');
+      node.className = `level-node ${stateClass}`;
+      node.innerText = i <= unlockedLevel ? i : '🔒';
+      const offset = Math.sin(i * 0.8) * 78;
+      node.style.transform = `translateX(${offset}px)`;
+
+      if (i % 3 === 0) {
+        const decor = document.createElement('div');
+        decor.className = 'tree';
+        decor.innerText = i % 2 === 0 ? '🌲' : '🍄';
+        decor.style.left = offset > 0 ? '-52px' : '72px';
+        node.appendChild(decor);
+      }
+      node.onclick = () => handleLevelClick(i);
+      path.appendChild(node);
+    }
+  }
+  window.nextZone = function() { if (currentZone < maxZones) { currentZone++; renderMap(); } };
+  window.prevZone = function() { if (currentZone > 1) { currentZone--; renderMap(); } };
+
+  // --- LEVEL SELECTION ---
+  function handleLevelClick(lvl) {
+    if (lvl <= unlockedLevel) {
+      currentLevel = lvl;
+      targetScore = 30 + (lvl * 30);
+      maxMoves = 20 + Math.floor(lvl / 3) * 5;
+      document.getElementById('playLevelNum').innerText = lvl;
+      document.getElementById('playTargetScore').innerText = targetScore;
+      document.getElementById('playTargetMoves').innerText = maxMoves;
+      openModal('playModal');
+    } else if (lvl === unlockedLevel + 1) {
+      selectedLevelForUnlock = lvl;
+      document.getElementById('lockedText').innerText = `Watch a short Rewarded Ad to unlock Level ${lvl}?`;
+      openModal('lockedModal');
+    } else {
+      showToast(`Unlock Level ${unlockedLevel + 1} first!`);
+    }
+  }
+
+  // --- REWARDED AD ACTIONS ---
+  window.watchAdToUnlock = function() {
+    let now = Date.now();
+    if (now - adCooldown < 8000) return showToast('Please wait a few seconds before next ad.');
+    adCooldown = now;
+
+    triggerRewardedAd(() => {
+      unlockedLevel = selectedLevelForUnlock;
+      localStorage.setItem('unlockedLevel', unlockedLevel);
+      closeModal('lockedModal');
+      renderMap();
+      showToast(`Level ${unlockedLevel} Unlocked!`);
+      handleLevelClick(unlockedLevel);
+    });
+  };
+
+  window.watchAdForMoves = function() {
+    let now = Date.now();
+    if (now - adCooldown < 8000) return showToast('Please wait a few seconds before next ad.');
+    adCooldown = now;
+
+    triggerRewardedAd(() => {
+      moves += 5;
+      updateUI();
+      closeModal('gameOverModal');
+      showToast('+5 Extra Moves Added!');
+    });
+  };
+
+  // --- GAME ENGINE ---
+  window.startGame = function() {
+    showScreen('gameScreen');
+    score = 0;
+    targetScore = 30 + (currentLevel * 30);
+    maxMoves = 20 + Math.floor(currentLevel / 3) * 5;
+    moves = maxMoves;
+    isAnimating = false;
+    updateUI();
+    createBoard();
+  };
+  window.retryLevel = function() { startGame(); };
+  window.nextLevelFromVictory = function() {
+    currentLevel++;
+    startGame();
+  };
+
+  function updateUI() {
+    document.getElementById('uiLevel').innerText = currentLevel;
+    document.getElementById('uiMoves').innerText = moves;
+    document.getElementById('uiScore').innerText = `${score} / ${targetScore}`;
+  }
+
+  function createBoard() {
+    const gridElement = document.getElementById('grid');
+    gridElement.innerHTML = '';
+    grid = []; gridEls = [];
+    for (let r = 0; r < width; r++) {
+      for (let c = 0; c < width; c++) {
+        let i = r * width + c;
+        const gem = document.createElement('div');
+        gem.className = 'gem';
+        gem.dataset.id = i;
+
+        let randomColor;
+        do {
+          randomColor = emojis[Math.floor(Math.random() * emojis.length)];
+        } while (
+          (c >= 2 && grid[i - 1] === randomColor && grid[i - 2] === randomColor) ||
+          (r >= 2 && grid[i - width] === randomColor && grid[i - width * 2] === randomColor)
+        );
+
+        grid[i] = randomColor;
+        gem.innerText = randomColor;
+        setPos(gem, r, c);
+
+        gridElement.appendChild(gem);
+        gridEls.push(gem);
+
+        gem.addEventListener('touchstart', handleTouchStart, { passive: false });
+        gem.addEventListener('touchend', handleTouchEnd);
+        gem.addEventListener('mousedown', handleTouchStart);
+        gem.addEventListener('mouseup', handleTouchEnd);
+      }
+    }
+  }
+
+  function setPos(el, r, c) {
+    el.style.top = `${r * 12.5}%`;
+    el.style.left = `${c * 12.5}%`;
+  }
+
+  let startX = 0, startY = 0;
+  function handleTouchStart(e) {
+    if (isAnimating || moves <= 0) return;
+    if (e.type === 'touchstart') e.preventDefault();
+    startX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+    startY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+    draggedId = parseInt(this.dataset.id);
+  }
+
+  function handleTouchEnd(e) {
+    if (draggedId === null || isAnimating || moves <= 0) return;
+    if (e.type === 'touchend') e.preventDefault();
+    let endX = e.type.includes('touch') ? e.changedTouches[0].clientX : e.clientX;
+    let endY = e.type.includes('touch') ? e.changedTouches[0].clientY : e.clientY;
+
+    let dx = endX - startX, dy = endY - startY;
+    replacedId = draggedId;
+
+    if (Math.abs(dx) > 25 || Math.abs(dy) > 25) {
+      if (Math.abs(dx) > Math.abs(dy)) {
+        if (dx > 0 && draggedId % width < width - 1) replacedId = draggedId + 1;
+        else if (dx < 0 && draggedId % width > 0) replacedId = draggedId - 1;
+      } else {
+        if (dy > 0 && draggedId + width < width * width) replacedId = draggedId + width;
+        else if (dy < 0 && draggedId - width >= 0) replacedId = draggedId - width;
+      }
+    }
+
+    if (draggedId !== replacedId) executeSwap();
+    draggedId = null; replacedId = null;
+  }
+
+  function executeSwap() {
+    isAnimating = true;
+    let dId = draggedId, rId = replacedId;
+
+    let temp = grid[dId];
+    grid[dId] = grid[rId];
+    grid[rId] = temp;
+
+    let drC = dId % width, drR = Math.floor(dId / width);
+    let reC = rId % width, reR = Math.floor(rId / width);
+    setPos(gridEls[dId], reR, reC);
+    setPos(gridEls[rId], drR, drC);
+
+    let tempEl = gridEls[dId];
+    gridEls[dId] = gridEls[rId];
+    gridEls[rId] = tempEl;
+    gridEls[dId].dataset.id = dId;
+    gridEls[rId].dataset.id = rId;
+
+    setTimeout(() => {
+      let matches = findMatches();
+      if (matches.length === 0) {
+        soundError();
+        let temp = grid[dId]; grid[dId] = grid[rId]; grid[rId] = temp;
+        setPos(gridEls[dId], drR, drC);
+        setPos(gridEls[rId], reR, reC);
+        let tempEl = gridEls[dId]; gridEls[dId] = gridEls[rId]; gridEls[rId] = tempEl;
+        gridEls[dId].dataset.id = dId; gridEls[rId].dataset.id = rId;
+        setTimeout(() => { isAnimating = false; }, 280);
+      } else {
+        moves--;
+        soundSwap();
+        processMatches(matches);
+      }
+    }, 280);
+  }
+
+  function findMatches() {
+    let matchedIds = new Set();
+    for (let r = 0; r < width; r++) {
+      for (let c = 0; c < width - 2; c++) {
+        let i = r * width + c;
+        if (!grid[i]) continue;
+        let matchLen = 1;
+        while (c + matchLen < width && grid[i + matchLen] === grid[i]) matchLen++;
+        if (matchLen >= 3) {
+          for (let k = 0; k < matchLen; k++) matchedIds.add(i + k);
+        }
+      }
+    }
+    for (let c = 0; c < width; c++) {
+      for (let r = 0; r < width - 2; r++) {
+        let i = r * width + c;
+        if (!grid[i]) continue;
+        let matchLen = 1;
+        while (r + matchLen < width && grid[(r + matchLen) * width + c] === grid[i]) matchLen++;
+        if (matchLen >= 3) {
+          for (let k = 0; k < matchLen; k++) matchedIds.add((r + k) * width + c);
+        }
+      }
+    }
+    return Array.from(matchedIds);
+  }
+
+  function spawnFloatingPoints(id, pts) {
+    const container = document.getElementById('grid');
+    const el = document.createElement('div');
+    el.className = 'float-score';
+    el.innerText = `+${pts}`;
+    el.style.left = `${(id % width) * 12.5 + 2}%`;
+    el.style.top = `${Math.floor(id / width) * 12.5}%`;
+    container.appendChild(el);
+    setTimeout(() => el.remove(), 800);
+  }
+
+  function processMatches(matches) {
+    let gained = matches.length * 10;
+    score += gained;
+    updateUI();
+    soundMatch();
+
+    if (matches.length > 0) {
+      spawnFloatingPoints(matches[0], gained);
+    }
+
+    matches.forEach(id => {
+      grid[id] = '';
+      gridEls[id].classList.add('matched');
+    });
+
+    setTimeout(applyGravity, 260);
+  }
+
+  function applyGravity() {
+    for (let c = 0; c < width; c++) {
+      for (let r = width - 1; r >= 0; r--) {
+        let i = r * width + c;
+        if (grid[i] === '') {
+          for (let k = r - 1; k >= 0; k--) {
+            let above = k * width + c;
+            if (grid[above] !== '') {
+              grid[i] = grid[above];
+              grid[above] = '';
+
+              let elAbove = gridEls[above];
+              gridEls[above] = gridEls[i];
+              gridEls[i] = elAbove;
+
+              gridEls[i].dataset.id = i;
+              gridEls[above].dataset.id = above;
+              setPos(gridEls[i], r, c);
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    for (let i = 0; i < width * width; i++) {
+      if (grid[i] === '') {
+        grid[i] = emojis[Math.floor(Math.random() * emojis.length)];
+        gridEls[i].innerText = grid[i];
+        gridEls[i].classList.remove('matched');
+        let r = Math.floor(i / width), c = i % width;
+        gridEls[i].style.transition = 'none';
+        setPos(gridEls[i], -1, c);
+        setTimeout(() => {
+          gridEls[i].style.transition = 'top 0.28s ease-in';
+          setPos(gridEls[i], r, c);
+        }, 20);
+      }
+    }
+
+    setTimeout(() => {
+      let newMatches = findMatches();
+      if (newMatches.length > 0) processMatches(newMatches);
+      else {
+        isAnimating = false;
+        if (!checkWinLoss()) checkDeadlock();
+      }
+    }, 320);
+  }
+
+  function checkDeadlock() {
+    if (moves <= 0) return;
+    let hasMove = false;
+    let tempGrid = [...grid];
+    for (let i = 0; i < 64; i++) {
+      let r = Math.floor(i / width), c = i % width;
+      if (c < width - 1) {
+        swap(tempGrid, i, i + 1);
+        if (testMatch(tempGrid)) hasMove = true;
+        swap(tempGrid, i, i + 1);
+      }
+      if (r < width - 1) {
+        swap(tempGrid, i, i + width);
+        if (testMatch(tempGrid)) hasMove = true;
+        swap(tempGrid, i, i + width);
+      }
+      if (hasMove) break;
+    }
+    if (!hasMove) {
+      showToast('No moves left! Auto-shuffling board...');
+      createBoard();
+    }
+  }
+  function swap(arr, a, b) { let t = arr[a]; arr[a] = arr[b]; arr[b] = t; }
+  function testMatch(testGrid) {
+    for (let r = 0; r < width; r++) {
+      for (let c = 0; c < width - 2; c++) {
+        let i = r * width + c;
+        if (testGrid[i] && testGrid[i] == testGrid[i + 1] && testGrid[i] == testGrid[i + 2]) return true;
+      }
+    }
+    for (let c = 0; c < width; c++) {
+      for (let r = 0; r < width - 2; r++) {
+        let i = r * width + c;
+        if (testGrid[i] && testGrid[i] == testGrid[i + width] && testGrid[i] == testGrid[i + width * 2]) return true;
+      }
+    }
+    return false;
+  }
+
+  function checkWinLoss() {
+    if (score >= targetScore) {
+      if (currentLevel === unlockedLevel) {
+        unlockedLevel++;
+        localStorage.setItem('unlockedLevel', unlockedLevel);
+      }
+      soundWin();
+      document.getElementById('victoryScore').innerText = score;
+      openModal('victoryModal');
+      return true;
+    } else if (moves <= 0) {
+      document.getElementById('goTarget').innerText = targetScore;
+      document.getElementById('goScore').innerText = score;
+      openModal('gameOverModal');
+      return true;
+    }
+    return false;
+  }
+
+  window.onload = () => showScreen('splashScreen');
+</script>
+</body>
+</html>
